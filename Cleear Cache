@@ -1,0 +1,27 @@
+name: Cleanup Pull Request Caches
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear PR Caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh extension install actions/gh-actions-cache || true
+          
+          # Find and delete caches associated with the closed pull request ref
+          echo "Fetching caches for PR ${{ github.event.pull_request.number }}..."
+          gh actions-cache list --ref refs/pull/${{ github.event.pull_request.number }}/merge --limit 100 | cut -f 1 | while read -r cache_key; do
+            if [ -n "$cache_key" ]; then
+              echo "Deleting cache: $cache_key"
+              gh actions-cache delete "$cache_key" --confirm
+            fi
+          done
